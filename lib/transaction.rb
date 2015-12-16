@@ -25,7 +25,7 @@ class Transaction
     inputs.map { |input| [input["source_hash"], input["source_index"], txn_signature ]}
   end
 
-  def package_before_signature
+  def pre_sign_package
     txn_array = [input_array, output_array]
     txn_json = txn_array.to_json
     txn_SHA256_hash = Digest::SHA256.hexdigest('txn_json')
@@ -33,7 +33,7 @@ class Transaction
 
   def signature(wallet)
     # for security, how can we best limit use of private_key?
-    wallet.sign_transaction(package_before_signature)
+    wallet.sign_transaction(pre_sign_package)
   end
 
   def bundle_full_txn
