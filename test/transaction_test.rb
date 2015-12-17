@@ -1,6 +1,6 @@
 require 'minitest/autorun'
 require 'minitest/pride'
-require_relative '../lib/transaction'
+require './lib/transaction'
 
 class TransactionTest < Minitest::Test
   attr_reader :inputs, :outputs, :transaction, :wallet
@@ -50,14 +50,7 @@ class TransactionTest < Minitest::Test
   end
 
   def test_it_bundles_the_full_transaction
-    expected = "00dbbf6d2b142d82d8ac9b9eff31c0b07c957b9380448b81770b15423559f70d"
+    expected = "83046687cebc51e7dd82018450d43b7a49bde90efe9785a9758485b5e2d8cb22"
     assert_equal expected, transaction.bundle_full_txn
-  end
-
-  def test_it_finds_amount_of_source_txn
-    # index will need to be defined in the output we create
-    skip
-    inputs = txn_data["inputs"]
-    transaction = Transaction.new(inputs, 0)
   end
 end

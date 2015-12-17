@@ -18,10 +18,28 @@ class WalletTest < Minitest::Test
 
   def test_it_initializes_with_a_private_key
     assert_equal 'OpenSSL::PKey::RSA', wallet.private_key.class.to_s
+    assert wallet.public_key.public?
+    refute wallet.public_key.private? # this should be true => see below
+
+    # http://ruby-doc.org/stdlib-2.1.0/libdoc/openssl/rdoc/OpenSSL/PKey/RSA.html
+    # 2.2.3 :003 > pr = OpenSSL::PKey::RSA.generate(2048)
+    #  => #<OpenSSL::PKey::RSA:0x007ff122af4888>
+    # 2.2.3 :004 > pu = pr.public_key
+    #  => #<OpenSSL::PKey::RSA:0x007ff122ad57d0>
+    # 2.2.3 :005 > pr.private?
+    #  => true
+    # 2.2.3 :006 > pr.public?
+    #  => true
+    # 2.2.3 :007 > pu.public?
+    #  => true
+    # 2.2.3 :008 > pu.private?
+    #  => false   
   end
 
   def test_it_initializes_with_a_public_key
     assert_equal 'OpenSSL::PKey::RSA', wallet.public_key.class.to_s
+    refute wallet.public_key.private?
+    assert wallet.public_key.public?
   end
 
   def test_private_key_encrypts_message

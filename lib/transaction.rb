@@ -36,9 +36,11 @@ class Transaction
     wallet.sign_transaction(pre_sign_package)
   end
 
+  def full_txn_json
+    [input_array_with_signature, output_array].to_json
+  end
+
   def bundle_full_txn
-    txn_array = [input_array_with_signature, output_array]
-    txn_json = txn_array.to_json
-    txn_SHA256_hash = Digest::SHA256.hexdigest('txn_json')
+    Digest::SHA256.hexdigest(full_txn_json)
   end
 end
