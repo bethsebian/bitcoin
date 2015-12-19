@@ -30,8 +30,8 @@ class Wallet
   end
 
   def sign_transaction(transaction_json)
-    signature = @private_key.private_encrypt(transaction_json)
-    hash_of_signature = Digest::SHA256.hexdigest(signature)
+    Base64.encode64(private_key.sign(OpenSSL::Digest::SHA256.new, transaction_json))
+    # signature = @private_key.private_encrypt(transaction_json)
   end
 
   def gen(length)

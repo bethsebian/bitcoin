@@ -19,8 +19,7 @@ class Transaction
     outputs.map { |output| [output["amount"], output["address"]] }
   end
 
-  def input_array_with_signature
-    wallet = Wallet.new
+  def input_array_with_signature(wallet)
     txn_signature = signature(wallet)
     inputs.map { |input| [input["source_hash"], input["source_index"], txn_signature ]}
   end
@@ -36,11 +35,12 @@ class Transaction
     wallet.sign_transaction(pre_sign_package)
   end
 
-  def full_txn_json
-    [input_array_with_signature, output_array].to_json
+  def full_txn_json(wallet)
+    [input_array_with_signature(wallet), output_array].to_json
+
   end
 
-  def bundle_full_txn
-    Digest::SHA256.hexdigest(full_txn_json)
+  def bundle_full_txn(wallet)
+    Digest::SHA256.hexdigest(full_txn_json(wallet))
   end
 end

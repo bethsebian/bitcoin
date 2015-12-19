@@ -34,7 +34,8 @@ class TransactionTest < Minitest::Test
 
   def test_it_gets_signature_from_wallet
     pre_sign_package = transaction.pre_sign_package
-    signed_transaction = Digest::SHA256.hexdigest(wallet.private_key.private_encrypt(pre_sign_package))
+    signed_transaction = Base64.encode64(wallet.private_key.sign(OpenSSL::Digest::SHA256.new, pre_sign_package))
+    # wallet.private_key.private_encrypt(pre_sign_package)
 
     expected = signed_transaction
     assert_equal expected, transaction.signature(wallet)
@@ -42,15 +43,15 @@ class TransactionTest < Minitest::Test
 
   def test_it_prepares_input_array_with_signature
     pre_sign_package = transaction.pre_sign_package
-    signed_transaction = Digest::SHA256.hexdigest(wallet.private_key.private_encrypt(pre_sign_package))
+    signed_transaction = Base64.encode64(wallet.private_key.sign(OpenSSL::Digest::SHA256.new, pre_sign_package))
 
     expected = [ [ "source_hash_1", 4, signed_transaction],
                  [ "source_hash_2", 2, signed_transaction] ]
-    assert_equal expected, transaction.input_array_with_signature
+    assert_equal expected, transaction.input_array_with_signature(wallet)
   end
 
   def test_it_bundles_the_full_transaction
-    expected = "83046687cebc51e7dd82018450d43b7a49bde90efe9785a9758485b5e2d8cb22"
-    assert_equal expected, transaction.bundle_full_txn
+    expected = "495376e19229e1aea31624c7c33dc8535c564b026ad1ace8d2b12fe7934ad578"
+    assert_equal expected, transaction.bundle_full_txn(wallet)
   end
 end

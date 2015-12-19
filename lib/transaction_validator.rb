@@ -1,6 +1,7 @@
 require 'pry'
 require_relative 'wallet'
 require_relative 'transaction'
+require 'pry-nav'
 
 class TransactionValidator
   attr_reader :full_txn, :archive, :current_pre_sign_package, :wallet_2
@@ -24,7 +25,7 @@ class TransactionValidator
     end
   end
 
-  def find_source_txn
+  def find_source_txn_output
     source_txns_lookup_info = find_source_reference_info
 
     source_txns = source_txns_lookup_info.map do |source|
@@ -33,7 +34,7 @@ class TransactionValidator
   end
 
   def source_txn_total_value
-    find_source_txn.map do |amount, pub_key|
+    find_source_txn_output.map do |amount, pub_key|
       amount
     end.inject(:+)
   end
@@ -57,24 +58,20 @@ class TransactionValidator
   end
 
   def valid_author?
-    signature = extracted_signature # "83cce33096c66152d93fb2899ab96496c07152acd48a4bc92b74813b2a183e3b"
+    signature = Base64.decode64(extracted_signature)
 
-    pub_keys_of_source_txns = find_source_txn.map do |amount, pub_key| #["-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA74d+zjjXvCMF0TTHQAJz\nm3Lgkca4gK3E3XNb+iCipPT7bPOqvl98waBAWOiip+e+h061rC9foJKuhotWe4Gu\na0upgIfB5We1H/eEGaEK2ZrfTdQa87JW6ejVkHP2B/lL2ibTmnT/CvJg2seY1YB0\nr+rBI3ONuvFVzVBNesASXNLrNE+dH0+zrUufDvo2a5y0mt0f4q8QFZDxX2ettE7I\nzpNt9ea5kRh/gpIeSeaU4uEUt3is/R2yr1JPzQN7Hx3efDfXJ7b6MnL6wU+/0D1R\nmE5YtARxnvXBZb3sALmg5fdyOVg/L/s2lizHKRk2ASaWCXu/X2Nw9ISuMhWgGMzs\ntwIDAQAB\n-----END PUBLIC KEY-----\n"]
+    pub_keys_of_source_txns = find_source_txn_output.map do |amount, pub_key| #["-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA74d+zjjXvCMF0TTHQAJz\nm3Lgkca4gK3E3XNb+iCipPT7bPOqvl98waBAWOiip+e+h061rC9foJKuhotWe4Gu\na0upgIfB5We1H/eEGaEK2ZrfTdQa87JW6ejVkHP2B/lL2ibTmnT/CvJg2seY1YB0\nr+rBI3ONuvFVzVBNesASXNLrNE+dH0+zrUufDvo2a5y0mt0f4q8QFZDxX2ettE7I\nzpNt9ea5kRh/gpIeSeaU4uEUt3is/R2yr1JPzQN7Hx3efDfXJ7b6MnL6wU+/0D1R\nmE5YtARxnvXBZb3sALmg5fdyOVg/L/s2lizHKRk2ASaWCXu/X2Nw9ISuMhWgGMzs\ntwIDAQAB\n-----END PUBLIC KEY-----\n"]
       pub_key
     end
 
     pub_keys_of_source_txns.map do |key|
       key_object = OpenSSL::PKey::RSA.new(key)
-
       if key_object.public_decrypt(signature) && key_object.public_decrypt(signature) == current_pre_sign_package
-        true
-      else
-        false
       end
     end
   end
 
   def valid?
-    if valid_author? && valid_amount? then true else false end
+    valid_author? && valid_amount?
   end
 end
