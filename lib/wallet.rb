@@ -4,7 +4,7 @@ require 'base64'
 class Wallet
   attr_reader :private_key, :public_key
 
-  def initialize(path = "#{Dir.pwd}/.wallet" )
+  def initialize(path = "#{Dir.pwd}/.wallet")
     @private_key = load_or_generate_private_key("#{path}/private_key.pem")
     @public_key = load_or_generate_public_key("#{path}/public_key.pem")
   end
@@ -14,7 +14,7 @@ class Wallet
       OpenSSL::PKey.read(File.read(path))
     else
       @public_key = private_key.public_key
-      File.write(path, public_key.to_pem)
+      File.write(path, public_pem)
       public_key
     end
   end
@@ -29,13 +29,8 @@ class Wallet
     end
   end
 
-  def sign_transaction(transaction_json)
-    Base64.encode64(private_key.sign(OpenSSL::Digest::SHA256.new, transaction_json))
-    # signature = @private_key.private_encrypt(transaction_json)
-  end
-
-  def gen(length)
-    OpenSSL::PKey::RSA.generate(length)
+  def sign_transaction(txn_sha)
+    Base64.encode64(private_key.sign(OpenSSL::Digest::SHA256.new, txn_sha))
   end
 
   def public_pem

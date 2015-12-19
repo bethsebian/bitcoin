@@ -4,43 +4,51 @@ require 'pry'
 require 'json'
 
 class Transaction
-  attr_reader :inputs, :outputs
+  attr_reader :inputs, :outputs, :signature
 
   def initialize(inputs, outputs)
     @inputs = inputs
     @outputs = outputs
   end
 
-  def input_array
-    inputs.map { |input| [input["source_hash"], input["source_index"]]}
-  end
-
-  def output_array
-    outputs.map { |output| [output["amount"], output["address"]] }
-  end
-
   def input_array_with_signature(wallet)
     txn_signature = signature(wallet)
-    inputs.map { |input| [input["source_hash"], input["source_index"], txn_signature ]}
+    inputs.map do |input|
+      {
+        "source_hash": input["source_hash"],
+        "source_index": input["source_index"],
+        "signature": txn_signature
+      }
+    end
   end
 
-  def pre_sign_package
-    txn_array = [input_array, output_array]
-    txn_json = txn_array.to_json
-    txn_SHA256_hash = Digest::SHA256.hexdigest('txn_json')
+  def txn_wo_signature_sha
+    ins = inputs.map { |input| [input["source_hash"], input["source_index"].to_s] }.join
+    outs = outputs.map { |output| [output["amount"].to_s, output["address"]] }.join
+    txn = ins + outs
+    txn_wo_signature_SHA256 = Digest::SHA256.hexdigest(txn)
   end
 
   def signature(wallet)
-    # for security, how can we best limit use of private_key?
-    wallet.sign_transaction(pre_sign_package)
+    wallet.sign_transaction(txn_wo_signature_sha)
   end
 
-  def full_txn_json(wallet)
-    [input_array_with_signature(wallet), output_array].to_json
-
+  def complete_txn_string(wallet)
+    ins = inputs.map { |input| [input["source_hash"], input["source_index"].to_s, signature(wallet) ] }.join
+    outs= outputs.map { |output| [output["amount"].to_s, output["address"]] }.join
+    txn = ins + outs
   end
 
-  def bundle_full_txn(wallet)
-    Digest::SHA256.hexdigest(full_txn_json(wallet))
+  def txn_hash(wallet)
+    Digest::SHA256.hexdigest(complete_txn_string(wallet))
+  end
+
+  def final_bundle(wallet, time = Time.now)
+    {
+      "inputs": input_array_with_signature(wallet),
+      "outputs": outputs,
+      "timestamp": time,
+      "txn_hash": txn_hash(wallet)
+    }
   end
 end
