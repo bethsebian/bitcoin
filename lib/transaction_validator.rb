@@ -4,70 +4,53 @@ require_relative 'transaction'
 require 'pry-nav'
 
 class TransactionValidator
-  attr_reader :full_txn, :archive, :current_pre_sign_package, :wallet_2
+  attr_reader :full_txn, :archive, :wallet, :transaction
 
-  def initialize(full_txn_json, archive, transaction_object, wallet_2)
-    @full_txn = JSON.parse(full_txn_json)
+  def initialize(archive, transaction, wallet)
+    @transaction = transaction
     @archive = archive
-    @current_pre_sign_package = transaction_object.pre_sign_package
-    @wallet_2 = wallet_2
+    @wallet = wallet
   end
 
   def extracted_signature
-    full_txn[0][0][2]
+    transaction.signature(wallet)
   end
 
-  def find_source_reference_info
-    inputs = full_txn[0]
-
-    inputs.map do |input|
-      { "source_hash" => input[0], "source_index" => input[1] }
+  def source_txn_outputs
+    transaction.inputs.map do |source|
+      lookup_source_in_archive(source)
     end
   end
 
-  def find_source_txn_output
-    source_txns_lookup_info = find_source_reference_info
+  def lookup_source_in_archive(source)
+    archive[source["source_hash"]][:outputs][source["source_index"]]
+  end
 
-    source_txns = source_txns_lookup_info.map do |source|
-      JSON.parse(archive[source_txns_lookup_info[0]["source_hash"]])[1][source_txns_lookup_info[0]["source_index"]]
-    end
+  def valid_amount?
+    current_transaction_total_value == source_txn_total_value
   end
 
   def source_txn_total_value
-    find_source_txn_output.map do |amount, pub_key|
-      amount
+    source_txn_outputs.map do |output|
+      output["amount"]
     end.inject(:+)
   end
 
   def current_transaction_total_value
-    full_txn[1].map do | amount, pub_key |
-      amount
+    transaction.outputs.map do | output |
+      output["amount"]
     end.inject(:+)
   end
 
-  def valid_amount?
-    case current_transaction_total_value <=> source_txn_total_value
-      when -1
-        false # "You have inadequate funds"
-      when 0
-        true # "Transaction successful"
-      when 1
-        false # "You need to generate a txn output to yourself for difference of source_txn_total_value MINUS current_transaction_total_value"
-        # eventually add code (in Transaction) to add additional output
-    end
-  end
-
   def valid_author?
-    signature = Base64.decode64(extracted_signature)
+    binary_signature = Base64.decode64(extracted_signature)
 
-    pub_keys_of_source_txns = find_source_txn_output.map do |amount, pub_key| #["-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA74d+zjjXvCMF0TTHQAJz\nm3Lgkca4gK3E3XNb+iCipPT7bPOqvl98waBAWOiip+e+h061rC9foJKuhotWe4Gu\na0upgIfB5We1H/eEGaEK2ZrfTdQa87JW6ejVkHP2B/lL2ibTmnT/CvJg2seY1YB0\nr+rBI3ONuvFVzVBNesASXNLrNE+dH0+zrUufDvo2a5y0mt0f4q8QFZDxX2ettE7I\nzpNt9ea5kRh/gpIeSeaU4uEUt3is/R2yr1JPzQN7Hx3efDfXJ7b6MnL6wU+/0D1R\nmE5YtARxnvXBZb3sALmg5fdyOVg/L/s2lizHKRk2ASaWCXu/X2Nw9ISuMhWgGMzs\ntwIDAQAB\n-----END PUBLIC KEY-----\n"]
-      pub_key
-    end
+    pub_keys = source_txn_outputs.map { |output| output["address"] }
 
-    pub_keys_of_source_txns.map do |key|
+    pub_keys.map do |key|
       key_object = OpenSSL::PKey::RSA.new(key)
-      if key_object.public_decrypt(signature) && key_object.public_decrypt(signature) == current_pre_sign_package
-      end
+      key_object.public_decrypt(binary_signature) &&
+      key_object.public_decrypt(binary_signature) == transaction.txn_wo_signature_sha
     end
   end
 

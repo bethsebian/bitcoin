@@ -1,15 +1,16 @@
 require 'minitest/autorun'
-require 'minitest/pride'
 require './lib/transaction'
 
 class TransactionTest < Minitest::Test
-  attr_reader :inputs, :outputs, :transaction, :wallet
+  attr_reader :transaction, :wallet
 
   def setup
-    @inputs = [ { "source_hash" => "source_hash_1", "source_index" => 4 },
+    inputs = [
+                { "source_hash" => "source_hash_1", "source_index" => 4 },
                 { "source_hash" => "source_hash_2", "source_index" => 2 }
                ]
-    @outputs = [  { "amount" => 345, "address" => "dest_pub_1" },
+    outputs = [
+                  { "amount" => 345, "address" => "dest_pub_1" },
                   { "amount" => 572, "address" => "dest_pub_2" },
                   { "amount" => 54,  "address" => "dest_pub_3" }
                 ]
@@ -17,41 +18,43 @@ class TransactionTest < Minitest::Test
     @wallet = Wallet.new
   end
 
-  def test_it_creates_list_of_input_data
-    expected = [["source_hash_1", 4], ["source_hash_2", 2]]
-    assert_equal expected, transaction.input_array
-  end
-
-  def test_it_creates_list_of_output_data
-    expected = [ [345, "dest_pub_1"], [572, "dest_pub_2"], [54, "dest_pub_3"] ]
-    assert_equal expected, transaction.output_array
-  end
-
   def test_it_creates_package_of_unsigned_transaction_data
-    expected = "00dbbf6d2b142d82d8ac9b9eff31c0b07c957b9380448b81770b15423559f70d"
-    assert_equal expected, transaction.pre_sign_package
+    expected = "5bf2585d0450ffbc4af52b9f9bf2874de8a4cf3029cd8614b18f3271cd5b5d5d"
+    assert_equal expected, transaction.txn_wo_signature_sha
    end
 
   def test_it_gets_signature_from_wallet
-    pre_sign_package = transaction.pre_sign_package
-    signed_transaction = Base64.encode64(wallet.private_key.sign(OpenSSL::Digest::SHA256.new, pre_sign_package))
-    # wallet.private_key.private_encrypt(pre_sign_package)
+    signed_txn = wallet.private_key.sign(OpenSSL::Digest::SHA256.new, transaction.txn_wo_signature_sha)
+    based64_txn = Base64.encode64(signed_txn)
 
-    expected = signed_transaction
-    assert_equal expected, transaction.signature(wallet)
+    assert_equal based64_txn, transaction.signature(wallet)
   end
 
   def test_it_prepares_input_array_with_signature
-    pre_sign_package = transaction.pre_sign_package
-    signed_transaction = Base64.encode64(wallet.private_key.sign(OpenSSL::Digest::SHA256.new, pre_sign_package))
+    txn_bundle_wo_signature = transaction.txn_wo_signature_sha
+    signed_transaction = Base64.encode64(wallet.private_key.sign(OpenSSL::Digest::SHA256.new, txn_bundle_wo_signature))
 
-    expected = [ [ "source_hash_1", 4, signed_transaction],
-                 [ "source_hash_2", 2, signed_transaction] ]
+    expected = [
+                 { :source_hash=>"source_hash_1",
+                   :source_index=>4,
+                   :signature=>"BWv6zny+OdmvnRs/I7agQdmMEIxkHk864jD3L3m78CrR7TeNG5oy1aSb7jYr\np3V2kKhwlZwGPA4/w9w+odCUGy5D38Y8k3EMoD1k0egTgjee2ppf0tLoqc5I\ndhJBdjQB+ngkKVQJjPbjefxCjzRat/uj3Je3QVMxuMAru2PB/aRO23QU/SdC\nI0wmxFkEJxChJ+WzzLMsFox5gl23/854QZtkGzmtXeTXcSTcvML/mMMKX/RX\neEUWPuHCw+qPoiqrpYvFV7KnVysFq9w1lNG54CeoIqUC5/tgD4ZR9/QZNHMs\n54CDP0uywe2GE8YNh/4sx2PdW8JBLFPQZKn148cNWg==\n"}, {:source_hash=>"source_hash_2", :source_index=>2, :signature=>"BWv6zny+OdmvnRs/I7agQdmMEIxkHk864jD3L3m78CrR7TeNG5oy1aSb7jYr\np3V2kKhwlZwGPA4/w9w+odCUGy5D38Y8k3EMoD1k0egTgjee2ppf0tLoqc5I\ndhJBdjQB+ngkKVQJjPbjefxCjzRat/uj3Je3QVMxuMAru2PB/aRO23QU/SdC\nI0wmxFkEJxChJ+WzzLMsFox5gl23/854QZtkGzmtXeTXcSTcvML/mMMKX/RX\neEUWPuHCw+qPoiqrpYvFV7KnVysFq9w1lNG54CeoIqUC5/tgD4ZR9/QZNHMs\n54CDP0uywe2GE8YNh/4sx2PdW8JBLFPQZKn148cNWg==\n"
+                  }
+                ]
     assert_equal expected, transaction.input_array_with_signature(wallet)
   end
 
-  def test_it_bundles_the_full_transaction
-    expected = "495376e19229e1aea31624c7c33dc8535c564b026ad1ace8d2b12fe7934ad578"
-    assert_equal expected, transaction.bundle_full_txn(wallet)
+  def test_it_creates_hash_of_the_full_transaction
+    expected = Digest::SHA256.hexdigest("source_hash_14#{transaction.signature(wallet)}source_hash_22#{transaction.signature(wallet)}345dest_pub_1572dest_pub_254dest_pub_3")
+    assert_equal expected, transaction.txn_hash(wallet)
+  end
+
+  def test_it_prepares_final_txn_bundles
+    expected =     {
+                      "inputs": transaction.input_array_with_signature(wallet),
+                      "outputs": transaction.outputs,
+                      "timestamp": "time",
+                      "txn_hash": "07eec1e02d2125801beffe0867558bfedc570c1f7f9bdad8c8a77ce3fac0b020"
+                    }
+    assert_equal expected, transaction.final_bundle(wallet, "time")
   end
 end
